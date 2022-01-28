@@ -1,0 +1,168 @@
+---
+title: "Projeto final"
+author: "Deivid Cezar"
+date: "15/06/2020"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=10, fig.height=4, fig.path='Figs/',
+                      echo=TRUE, warning=FALSE, message=FALSE)
+```
+
+## O peso da China na balança estadunidense
+
+A China moderna domina o comércio mundial após grandes reformas, introduzidas em 1978, mais focadas no desenvolvimento econômico orientado para o mercado, o país é classificado como o maior exportador mundial de mercadorias desde 2009. Nesse trabalho, busca-se ilustrar o cenário das importações realizadas pelos Estados Unidos e compreender o peso da China em sua balança comercial. Os dados foram baixados do https://usatrade.census.gov/ e representam o valor total de importações dos Estados Unidos, sendo dividido em commodities vindas da China e do mundo todo. Abaixo, importa-se as bibliotecas necessárias e a base de dados.
+
+```{r}
+# Bibliotecas
+library(readxl)
+library(dplyr)
+library(ggplot2)
+
+# Importando base de dados
+df_raw = read_excel("data.xlsx")
+
+# Amostra de cinco linhas da base de dados bruta
+sample_n(df_raw, 5)
+```
+
+Em seguida, foi feita a limpeza e a preparação dos dados para análise.
+
+```{r}
+# Eliminando linhas desnecessárias
+df_raw <- df_raw[-c(1, 2, 3), ]
+
+# Renomeando colunas
+colnames(df_raw) <- c("Commodity","Country","Time","Total Value ($US)")
+
+# Retirando algarismos iniciais da coluna "Commodity"
+df_raw$Commodity <- gsub("[[:digit:]]+", "", df_raw$Commodity)
+
+# Convertendo dados da coluna "Total Value ($US)" para .numeric
+df_raw$"Total Value ($US)" <- as.numeric(gsub(",", "", df_raw$"Total Value ($US)"))
+
+# Transformando valores para milhões e limitando em duas casas decimais
+df_raw$"Millions ($US)" <- round(df_raw$"Total Value ($US)" / 1000000, 2)
+
+# Separando dados em "World Total" e "China"
+df_world <- filter(df_raw, Country == "World Total")
+df_china <- filter(df_raw, Country == "China")
+
+# Agrupando valores totais em commodities anuais separados em "China" e "World Total"
+df_world_aggregate <- aggregate(.~Time, df_world[-c(1,2,5)], sum)
+df_china_aggregate <- aggregate(.~Time, df_china[-c(1,2,5)], sum)
+
+# Calculando participação anual de commodities chinesas nas importações estadunidenses
+df_china_aggregate$Participation <- df_china_aggregate$"Total Value ($US)" / df_world_aggregate$"Total Value ($US)"
+
+# Limitando valores em quatro casas decimais
+df_china_aggregate$Participation <- round(df_china_aggregate$Participation, 4)
+
+# Excluindo coluna de valor total - será desncessária para plotagem
+df_china_aggregate <- df_china_aggregate[-2]
+
+# Visualizando recorte (head) do data frame resultante
+head(df_china_aggregate)
+```
+
+Nessa primeira análise, focou-se em destacar a importância dos produtos chineses nas importações realizadas pelos Estados Unidos. O valor é crescente e representou, em 2018, mais de vinte por cento do total de importações feitas pelos Estados Unidos.
+
+```{r}
+# Construção do gráfico de participação anual de commodities chinesas nas importações feitas pelos Estados Unidos
+ggplot(df_china_aggregate, aes(x = Time, y = Participation)) + 
+  scale_y_continuous(labels = scales::percent) +
+  geom_bar(stat = "identity", fill = "red", width = 0.5) +
+  ggtitle("Participação de commodities chinesas importadas pelos Estados Unidos") + 
+  theme(plot.title = element_text(size = 12, hjust = 0.5)) +
+  xlab("Ano") + 
+  ylab("Valor percentual")
+```
+
+Após isso, procurou-se calcular os valores percentuais para cada grupo de commodities.
+
+```{r}
+# Calculando participação de cada commodity chinesa nas importações estadunidenses da respectiva commodity
+df_china$'Participation (%)' <- df_china$'Total Value ($US)' / df_world$'Total Value ($US)' * 100
+
+# Limitando quantidade de casas decimais
+df_china$'Participation (%)' <- round(df_china$'Participation (%)', 2)
+
+# Removendo colunas desncessárias para plotagem
+df_china <- df_china[-c(2, 4)]
+
+# Visualizando amostra do data frame resultante
+sample_n(df_china, 5)
+```
+
+E, por fim, buscou-se selecionar, apenas, as dez primeiras colocadas em valores percentuais.
+
+```{r}
+# Agregando valores (soma) pela coluna "Commodity"
+df_orderly_percentage <- aggregate(.~Commodity, df_china[-c(2,3)], sum)
+
+# Selecionando apenas as dez primeiras commodities em valor percentual
+df_orderly_percentage <- head(df_orderly_percentage[order(-df_orderly_percentage$"Participation (%)"),], 10)
+
+# Extraindo as commodities encontradas acima por meio de uma lista
+list_orderly_percentage <- df_orderly_percentage$Commodity
+
+# Aplicando filtragem dos elementos do data frame "df_china" para o top 10 em valor percentual
+df_china_percentage_10 <- df_china[df_china$Commodity %in%  list_orderly_percentage,]
+
+# Amostra do data frame resultante
+sample_n(df_china_percentage_10, 5)
+```
+
+O resultado gráfico pode ser observado abaixo.
+
+```{r}
+# Construção do gráfico das top dez commodities em valor percentual de participação
+ggplot(df_china_percentage_10, aes(x = Time, y = reorder(Commodity, df_china_percentage_10$"Participation (%)"), fill = df_china_percentage_10$"Participation (%)")) + 
+  geom_tile() +
+  scale_fill_gradient(low="white", high="red", name = "Valor percentual (%)") +
+  ggtitle("Principais commodities chinesas importadas pelos Estados Unidos em valor percentual") + 
+  theme(plot.title = element_text(size = 12, hjust = 0.5)) +
+  xlab("Ano") + 
+  ylab("Commodity")
+```
+
+Repetiu-se as ideias anteriores, mas agora com o valor total em milhões de doláres.
+
+```{r}
+# Agregando valores (soma) pela coluna "Commodity"
+df_orderly_millions <- aggregate(.~Commodity, df_china[-c(2,4)], sum)
+
+# Selecionando apenas as dez primeiras commodities em milhões de doláres
+df_orderly_millions <- head(df_orderly_millions[order(-df_orderly_millions$"Millions ($US)"),], 10)
+
+# Extraindo as commodities encontradas acima por meio de uma lista
+list_orderly_millions <- df_orderly_millions$Commodity
+
+# Aplicando filtragem dos elementos do data frame "df_china" para o top 10 em milhões de doláres
+df_china_millions_10 <- df_china[df_china$Commodity %in%  list_orderly_millions,]
+
+# Amostra do data frame resultante
+sample_n(df_china_millions_10, 5)
+```
+
+```{r}
+# Construção do gráfico das top dez commodities em milhões de doláres
+ggplot(df_china_millions_10, aes(x = Time, y = reorder(Commodity, df_china_millions_10$"Millions ($US)"), fill = df_china_millions_10$"Millions ($US)")) + 
+  geom_tile() +
+  scale_fill_gradient(low="white", high="red", name = "Milhões ($US)") +
+  ggtitle("Principais commodities chinesas importadas pelos Estados Unidos em valor absoluto") + 
+  theme(plot.title = element_text(size = 12, hjust = 0.5)) +
+  xlab("Ano") + 
+  ylab("Commodity")
+```
+
+Diante das análises gráficas, pode-se concluir que vários produtos, como é o caso de "Umbrellas, Walking-sticks, Riding-crops Etc, Parts" (mais de 90% e líder das importações em percentual durante todos os anos analisados), "Toys, Games & Sport Equipment; Parts & Accessories" (mais de 80%) e "Prep Feathers, Down Etc; Artif Flowers; H Hair Art" (de 80% com queda para cerca de 75% nos últimos anos), são quase que totalmente importados (em relação às importações americanas de todo o globo), apenas, da China. Numericamente, em bilhões de doláres, esses produtos não se demonstram como os mais caros, os líderes nesse quesito são "Electric Machinery Etc; Sound Equip; Tv Equip; Pts" (aproximadamente cento e cinquenta bilhões de doláres em 2018) e "Nuclear Reactors, Boilers, Machinery Etc.; Parts" (aproximadamente cento e dezesseis bilhões de doláres em 2018).
+
+## Referências
+
+Base de dados: https://usatrade.census.gov/
+
+Informações para texto: https://economia.estadao.com.br/noticias/geral,china-e-a-maior-exportadora-do-mundo-diz-omc,424220
+
+Heatmaps: https://jcoliver.github.io/learn-r/006-heatmaps.html
