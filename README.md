@@ -1,2 +1,3 @@
-# O-peso-da-China-na-balan-a-estadunidense
-Estudo das importações realizadas pelos Estados Unidos e investigação do peso da China em sua balança comercial.
+# O peso da China na balança estadunidense
+
+A China moderna domina o comércio mundial após grandes reformas, introduzidas em 1978, mais focadas no desenvolvimento econômico orientado para o mercado, o país é classificado como o maior exportador mundial de mercadorias desde 2009. Nesse trabalho, busca-se ilustrar o cenário das importações realizadas pelos Estados Unidos e compreender o peso da China em sua balança comercial. Os dados foram baixados do https://usatrade.census.gov/ e representam o valor total de importações dos Estados Unidos, sendo dividido em commodities vindas da China e do mundo todo.
